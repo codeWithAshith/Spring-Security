@@ -10,8 +10,6 @@ public class SpringSecurityApplication {
 	// username - user
 	// password - from console
 
-
-
 	// cookie will be sored in -> inspect -> application -> Cookies
 
 	public static void main(String[] args) {

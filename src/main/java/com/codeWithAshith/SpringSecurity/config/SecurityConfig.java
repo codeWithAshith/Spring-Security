@@ -1,8 +1,11 @@
 package com.codeWithAshith.SpringSecurity.config;
 
 
+import com.codeWithAshith.SpringSecurity.model.Role;
+import com.codeWithAshith.SpringSecurity.service.ContactUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -25,45 +28,44 @@ public class SecurityConfig {
     // we can define a UserDetailsManager or UserDetailsService component
 
     @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
+    public BCryptPasswordEncoder bCryptPasswordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public UserDetailsService userDetailsService(BCryptPasswordEncoder bCryptPasswordEncoder) {
-        InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
-        manager.createUser(User.withUsername("user")
-                .password(bCryptPasswordEncoder.encode("user"))
-                .roles("USER")
-                .build());
-        manager.createUser(User.withUsername("admin")
-                .password(bCryptPasswordEncoder.encode("admin"))
-                .roles("USER", "ADMIN")
-                .build());
-        return manager;
+    public UserDetailsService userDetailsService() {
+        return new ContactUserDetailsService();
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService());
+        authProvider.setPasswordEncoder(bCryptPasswordEncoder());
+
+        return authProvider;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity.csrf().disable()
                 .authorizeRequests()
-                .antMatchers("/h2/**")
+                .antMatchers("/h2-console/**")
                 .permitAll()
-                .and()
-                .authorizeRequests()
-                .antMatchers("/admin/**")
-                .hasAnyRole("ADMIN")
-                .antMatchers("/user/**")
-                .hasAnyRole("USER", "ADMIN")
+                .antMatchers("/api/auth/**")
+                .permitAll()
+                .antMatchers("/api/user/**")
+                .hasAnyRole(Role.USER)
                 .anyRequest()
                 .authenticated()
-                .and()
-                .formLogin()
-                .and()
-                .csrf()
-                .disable();
+                .and().httpBasic()
+                .and().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 
-        return http.build();
+        httpSecurity.headers().frameOptions().disable();
+        httpSecurity.authenticationProvider(authenticationProvider());
+
+        return httpSecurity.build();
     }
+
 
 }
